@@ -152,7 +152,9 @@ Wichtige Variablen in `.env`:
 - `LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1`
 - `LMSTUDIO_MODEL=qwen/qwen3.5-9b`
 - `WHISPER_MODEL=large-v3`
+- `WHISPER_FALLBACK_MODEL=distil-large-v3`
 - `WHISPER_DEVICE=auto`
+- `WHISPER_BEAM_SIZE=3`
 - `VITE_API_BASE_URL=http://SERVER-IP:8000`
 
 ## 9) LM Studio Setup (GPU)
@@ -263,9 +265,21 @@ curl -X POST "http://127.0.0.1:8000/api/jobs" \
   - Optional HF Token setzen fuer bessere Rate Limits:
   - `export HF_TOKEN=<dein_token>`
   - Danach Backend neu starten.
+- `RuntimeError: CUDA failed with error out of memory`
+  - Ursache: `large-v3` + LM Studio auf derselben 12GB GPU.
+  - Sofortfix in `.env`:
+  - `WHISPER_COMPUTE_TYPE=int8_float16`
+  - `WHISPER_FALLBACK_MODEL=distil-large-v3`
+  - `WHISPER_BEAM_SIZE=2`
+  - Alternativ LM Studio waehrend Transkription entladen oder kleineres LLM nutzen.
 - LM Studio Modellname passt nicht
   - Verfuegbare IDs pruefen: `curl http://127.0.0.1:1234/v1/models`
   - Exakte ID in `.env` bei `LMSTUDIO_MODEL` setzen (z.B. `qwen/qwen3.5-9b`).
+
+- `.env.example` nicht gefunden
+  - Pruefe, ob du auf dem neuesten Stand bist:
+  - `git pull`
+  - Falls Datei fehlt, `.env` manuell erstellen und die Variablen aus der README setzen.
 
 - `torch.cuda.is_available() == False`
   - Treiber/CUDA/cuDNN nicht korrekt installiert

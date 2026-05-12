@@ -23,8 +23,10 @@ class Settings:
     models_dir: Path = BASE_DIR / os.getenv("MODELS_DIR", "models")
 
     whisper_model: str = os.getenv("WHISPER_MODEL", "large-v3")
+    whisper_fallback_model: str = os.getenv("WHISPER_FALLBACK_MODEL", "distil-large-v3")
     whisper_device: str = os.getenv("WHISPER_DEVICE", "auto")
     whisper_compute_type: str = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
+    whisper_beam_size: int = int(os.getenv("WHISPER_BEAM_SIZE", "3"))
 
     lmstudio_base_url: str = os.getenv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
     lmstudio_model: str = os.getenv("LMSTUDIO_MODEL", "qwen/qwen3.5-9b")

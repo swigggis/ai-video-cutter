@@ -34,16 +34,55 @@ def resolve_device() -> tuple[str, str]:
     raise RuntimeError("CUDA device not available and CPU fallback is disabled")
 
 
+def _is_cuda_oom(error: Exception) -> bool:
+    message = str(error).lower()
+    return "out of memory" in message or "cuda failed" in message
+
+
+def _build_load_attempts() -> list[tuple[str, str, str]]:
+    base_device, base_compute_type = resolve_device()
+    attempts: list[tuple[str, str, str]] = [(settings.whisper_model, base_device, base_compute_type)]
+
+    if base_device == "cuda":
+        attempts.append((settings.whisper_model, "cuda", "int8_float16"))
+        if settings.whisper_fallback_model and settings.whisper_fallback_model != settings.whisper_model:
+            attempts.append((settings.whisper_fallback_model, "cuda", "float16"))
+            attempts.append((settings.whisper_fallback_model, "cuda", "int8_float16"))
+        if settings.enable_cpu_fallback:
+            attempts.append((settings.whisper_model, "cpu", "int8"))
+            if settings.whisper_fallback_model and settings.whisper_fallback_model != settings.whisper_model:
+                attempts.append((settings.whisper_fallback_model, "cpu", "int8"))
+
+    # Keep order but drop duplicates.
+    return list(dict.fromkeys(attempts))
+
+
 @lru_cache(maxsize=1)
 def get_model() -> WhisperModel:
-    device, compute_type = resolve_device()
-    logger.info("Loading Whisper model '%s' on device=%s compute_type=%s", settings.whisper_model, device, compute_type)
-    return WhisperModel(
-        settings.whisper_model,
-        device=device,
-        compute_type=compute_type,
-        download_root=str(settings.models_dir),
-    )
+    last_error: Exception | None = None
+
+    for model_name, device, compute_type in _build_load_attempts():
+        try:
+            logger.info("Loading Whisper model '%s' on device=%s compute_type=%s", model_name, device, compute_type)
+            return WhisperModel(
+                model_name,
+                device=device,
+                compute_type=compute_type,
+                download_root=str(settings.models_dir),
+            )
+        except Exception as exc:  # pragma: no cover - runtime environment dependent
+            last_error = exc
+            if _is_cuda_oom(exc):
+                logger.warning(
+                    "Whisper model load failed with CUDA OOM for model=%s compute_type=%s. Trying fallback.",
+                    model_name,
+                    compute_type,
+                )
+                continue
+            logger.exception("Whisper model load failed")
+            raise
+
+    raise RuntimeError("Could not load any Whisper model fallback") from last_error
 
 
 def warmup_model() -> None:
@@ -58,7 +97,7 @@ def transcribe_video(input_file: str, language: str) -> list[Segment]:
     segments, info = model.transcribe(
         input_file,
         language=language_code,
-        beam_size=5,
+        beam_size=settings.whisper_beam_size,
         vad_filter=True,
     )
     logger.info("Transcription finished language=%s duration=%s", info.language, info.duration)
