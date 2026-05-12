@@ -151,6 +151,8 @@ Wichtige Variablen in `.env`:
 
 - `LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1`
 - `LMSTUDIO_MODEL=qwen/qwen3.5-9b`
+- `LLM_MAX_SEGMENTS=220`
+- `LLM_SEGMENT_TEXT_MAX_CHARS=180`
 - `WHISPER_MODEL=large-v3`
 - `WHISPER_FALLBACK_MODEL=distil-large-v3`
 - `WHISPER_DEVICE=auto`
@@ -275,6 +277,10 @@ curl -X POST "http://127.0.0.1:8000/api/jobs" \
 - LM Studio Modellname passt nicht
   - Verfuegbare IDs pruefen: `curl http://127.0.0.1:1234/v1/models`
   - Exakte ID in `.env` bei `LMSTUDIO_MODEL` setzen (z.B. `qwen/qwen3.5-9b`).
+- `400 Bad Request` von `/v1/chat/completions`
+  - Haeufige Ursache: falsche Model-ID oder Prompt zu gross.
+  - Das Backend versucht jetzt automatisch Modell-Fallback und komprimierten Transcript-Payload.
+  - Bei Bedarf strenger begrenzen: `LLM_MAX_SEGMENTS=120` und `LLM_SEGMENT_TEXT_MAX_CHARS=120`.
 
 - `.env.example` nicht gefunden
   - Pruefe, ob du auf dem neuesten Stand bist:
