@@ -8,7 +8,24 @@ type JobState = {
   download_url?: string;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+function resolveApiBaseUrl(): string {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+function formatNetworkError(error: unknown): string {
+  if (error instanceof TypeError) {
+    return `Backend nicht erreichbar unter ${API_BASE_URL}. Starte den FastAPI Server oder setze VITE_API_BASE_URL korrekt.`;
+  }
+  return error instanceof Error ? error.message : 'Unbekannter Netzwerkfehler';
+}
 
 export default function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -34,7 +51,7 @@ export default function App() {
         const payload = (await response.json()) as JobState;
         setJob(payload);
       } catch (pollError) {
-        setError(pollError instanceof Error ? pollError.message : 'Unknown polling error');
+        setError(formatNetworkError(pollError));
       }
     }, 2000);
 
@@ -67,14 +84,20 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const payload = (await response.json()) as { detail?: string };
-        throw new Error(payload.detail ?? `Upload failed with status ${response.status}`);
+        let detail = `Upload failed with status ${response.status}`;
+        try {
+          const payload = (await response.json()) as { detail?: string };
+          detail = payload.detail ?? detail;
+        } catch {
+          // Ignore JSON parse failures and keep fallback detail.
+        }
+        throw new Error(detail);
       }
 
       const payload = (await response.json()) as JobState;
       setJob(payload);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unknown submit error');
+      setError(formatNetworkError(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -88,6 +111,7 @@ export default function App() {
         <p className="mt-4 max-w-2xl text-zinc-300">
           Upload, transkribieren, Highlights per LM Studio analysieren und das finale Video automatisch schneiden.
         </p>
+        <p className="mt-2 text-sm text-zinc-400">API Endpoint: {API_BASE_URL}</p>
 
         <form
           onSubmit={handleSubmit}

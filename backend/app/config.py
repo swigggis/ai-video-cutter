@@ -27,7 +27,7 @@ class Settings:
     whisper_compute_type: str = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
 
     lmstudio_base_url: str = os.getenv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
-    lmstudio_model: str = os.getenv("LMSTUDIO_MODEL", "qwen3.5:9b")
+    lmstudio_model: str = os.getenv("LMSTUDIO_MODEL", "qwen/qwen3.5-9b")
     lmstudio_timeout_seconds: int = int(os.getenv("LMSTUDIO_TIMEOUT_SECONDS", "120"))
 
     enable_cpu_fallback: bool = os.getenv("ENABLE_CPU_FALLBACK", "true").lower() == "true"

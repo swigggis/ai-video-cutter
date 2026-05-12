@@ -9,7 +9,7 @@ from ..job_store import job_store
 from ..schemas import Segment
 from .ffmpeg_service import cut_and_concat, normalize_to_mp4, probe_duration, sanitize_segments
 from .llm_service import extract_highlights
-from .whisper_service import transcribe_video
+from .whisper_service import transcribe_video, warmup_model
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,14 @@ def run_pipeline(job_id: str, source_file: Path, language: str, user_prompt: str
         _update(job_id, progress=5, message="Validating and converting input video")
         processing_input = normalize_to_mp4(source_file, source_file.with_suffix(".mp4"))
 
-        _update(job_id, progress=30, message="Running Whisper transcription on GPU/CPU")
+        _update(
+            job_id,
+            progress=20,
+            message="Preparing Whisper model (first run can download several GB and take many minutes)",
+        )
+        warmup_model()
+
+        _update(job_id, progress=35, message="Running Whisper transcription on GPU/CPU")
         transcript_segments = transcribe_video(str(processing_input), language)
         transcript_path = settings.outputs_dir / f"{source_file.stem}_{job_id}_transcript.json"
         transcript_path.write_text(
@@ -32,7 +39,7 @@ def run_pipeline(job_id: str, source_file: Path, language: str, user_prompt: str
             encoding="utf-8",
         )
 
-        _update(job_id, progress=60, message="Sending transcript to LM Studio for highlight detection")
+        _update(job_id, progress=65, message="Sending transcript to LM Studio for highlight detection")
         llm_segments = extract_highlights(transcript_segments, user_prompt)
 
         duration = probe_duration(processing_input)
@@ -46,7 +53,7 @@ def run_pipeline(job_id: str, source_file: Path, language: str, user_prompt: str
             encoding="utf-8",
         )
 
-        _update(job_id, progress=85, message="Cutting and concatenating final video with ffmpeg")
+        _update(job_id, progress=88, message="Cutting and concatenating final video with ffmpeg")
         output_name = f"{source_file.stem}_{job_id}{source_file.suffix.lower()}"
         output_path = settings.outputs_dir / output_name
         cut_and_concat(processing_input, output_path, safe_segments)

@@ -46,6 +46,11 @@ def get_model() -> WhisperModel:
     )
 
 
+def warmup_model() -> None:
+    # First run may download multiple GB from Hugging Face.
+    get_model()
+
+
 def transcribe_video(input_file: str, language: str) -> list[Segment]:
     model = get_model()
     language_code = "de" if language == "de" else "en"

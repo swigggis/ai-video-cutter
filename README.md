@@ -43,7 +43,7 @@ ai-video-cutter/
 - Python 3.11
 - Node.js 20+
 - ffmpeg mit `h264_nvenc`
-- LM Studio mit `qwen3.5:9b`
+- LM Studio mit `qwen/qwen3.5-9b`
 
 ## 1) NVIDIA Treiber Installation (Debian 12)
 
@@ -150,7 +150,7 @@ cp .env.example .env
 Wichtige Variablen in `.env`:
 
 - `LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1`
-- `LMSTUDIO_MODEL=qwen3.5:9b`
+- `LMSTUDIO_MODEL=qwen/qwen3.5-9b`
 - `WHISPER_MODEL=large-v3`
 - `WHISPER_DEVICE=auto`
 - `VITE_API_BASE_URL=http://SERVER-IP:8000`
@@ -158,7 +158,7 @@ Wichtige Variablen in `.env`:
 ## 9) LM Studio Setup (GPU)
 
 1. LM Studio fuer Linux herunterladen und starten.
-2. Modell `qwen3.5:9b` laden.
+2. Modell `qwen/qwen3.5-9b` laden.
 3. In LM Studio:
    - Local Server aktivieren
    - OpenAI-kompatiblen Endpoint aktivieren (Standard `http://127.0.0.1:1234/v1`)
@@ -217,6 +217,12 @@ Zugriff:
 6. Ausgabe in `outputs/`
 7. Logs in `logs/backend.log`
 
+Wichtig fuer den ersten Lauf:
+
+- `large-v3` wird beim ersten Job erst von Hugging Face geladen (mehrere GB).
+- In dieser Zeit bleibt der Job laenger in "Preparing Whisper model".
+- Das ist normal und kein Deadlock.
+
 ## Prompting Logik
 
 - Wenn leer: `Cut only the highlights.`
@@ -248,6 +254,18 @@ curl -X POST "http://127.0.0.1:8000/api/jobs" \
 ```
 
 ## Troubleshooting GPU
+
+- Job bleibt lange bei Whisper-Start
+  - Beim ersten Lauf wird das Modell heruntergeladen.
+  - Download-Fortschritt pruefen:
+  - `watch -n 2 'du -sh models || true'`
+  - `tail -f logs/backend.log`
+  - Optional HF Token setzen fuer bessere Rate Limits:
+  - `export HF_TOKEN=<dein_token>`
+  - Danach Backend neu starten.
+- LM Studio Modellname passt nicht
+  - Verfuegbare IDs pruefen: `curl http://127.0.0.1:1234/v1/models`
+  - Exakte ID in `.env` bei `LMSTUDIO_MODEL` setzen (z.B. `qwen/qwen3.5-9b`).
 
 - `torch.cuda.is_available() == False`
   - Treiber/CUDA/cuDNN nicht korrekt installiert
